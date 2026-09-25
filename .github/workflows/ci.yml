@@ -1,0 +1,24 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: DeterminateSystems/nix-installer-action@v23
+
+      - name: Check formatting
+        run: nix fmt -- --check *.nix
+
+      - name: Flake check (builds both editions)
+        run: nix flake check --print-build-logs

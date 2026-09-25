@@ -41,6 +41,9 @@
         nouride-router = final.callPackage ./package.nix { edition = "router"; };
       };
 
+      # `nix flake check` builds both editions.
+      checks = lib.mapAttrs (_: ps: removeAttrs ps [ "default" ]) self.packages;
+
       nixosModules.default = import ./module.nix self;
       nixosModules.nouride = self.nixosModules.default;
 

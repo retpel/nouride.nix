@@ -117,9 +117,14 @@ in
       [ cfg.port ] ++ lib.optional isRouter cfg.routerPort
     );
 
-    systemd.tmpfiles.settings.nouride.${cfg.stateDir}.d = {
-      inherit (cfg) user group;
-      mode = "0750";
+    systemd.tmpfiles.settings.nouride = {
+      ${cfg.stateDir}.d = {
+        inherit (cfg) user group;
+        mode = "0750";
+      };
+      # The daemon offers agents its own CLI as a tool only when a `nouride` binary sits in the
+      # install directory (the parent of `.nouride/`); point it at the current package.
+      "${cfg.stateDir}/nouride"."L+".argument = lib.getExe cfg.package;
     };
 
     systemd.services.nouride = {
@@ -145,7 +150,7 @@ in
         User = cfg.user;
         Group = cfg.group;
         WorkingDirectory = cfg.stateDir;
-        ExecStart = "${lib.getExe cfg.package} run";
+        ExecStart = "${lib.getExe cfg.package} start";
         EnvironmentFile = lib.mkIf (cfg.environmentFile != null) cfg.environmentFile;
         Restart = "always";
         RestartSec = 5;
@@ -153,11 +158,20 @@ in
         TimeoutStopSec = 45;
         KillSignal = "SIGTERM";
         UMask = "0027";
+        SyslogIdentifier = "nouride";
 
+        # Same sandbox as the unit `nouride service install` writes (its non-privileged mode).
         NoNewPrivileges = true;
         PrivateTmp = true;
-        ProtectSystem = "full";
-        ProtectHome = true;
+        ProtectSystem = "strict";
+        ProtectHome = "read-only"; # read-only rather than hidden, so a stateDir under /home still works
+        ReadWritePaths = [ cfg.stateDir ];
+        ProtectKernelTunables = true;
+        ProtectKernelModules = true;
+        ProtectControlGroups = true;
+        RestrictSUIDSGID = true;
+        RestrictNamespaces = true;
+        LockPersonality = true;
       };
     };
   };

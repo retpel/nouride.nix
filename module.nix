@@ -1,5 +1,10 @@
 # NixOS module: the systemd service install.sh would set up, minus the self-updater
-# (the binary lives in the read-only store — bump sources.json instead).
+# (the binary lives in the read-only store — bump sources.json / the flake input instead).
+#
+# The dashboard's "update" still offers itself: the daemon treats stateDir as its install
+# directory, and that is writable. Applying it writes the new release's files into stateDir
+# (replacing the `nouride` link until the next activation), but the service keeps running
+# cfg.package, so the version does not change. Update through Nix.
 self:
 {
   config,
@@ -18,9 +23,14 @@ in
 
     package = lib.mkOption {
       type = lib.types.package;
-      default = self.packages.${pkgs.stdenv.hostPlatform.system}.nouride;
-      defaultText = lib.literalExpression "nouride.packages.\${system}.nouride";
-      description = "Nouride build to run. Use the `nouride-router` package for the Router edition.";
+      # `pkgs.nouride` when the overlay is applied, so the build follows the system's nixpkgs
+      # (which then needs to allow the unfree licence); otherwise the flake's own build.
+      default = pkgs.nouride or self.packages.${pkgs.stdenv.hostPlatform.system}.nouride;
+      defaultText = lib.literalExpression "pkgs.nouride or nouride.packages.\${system}.nouride";
+      description = ''
+        Nouride build to run. Defaults to `pkgs.nouride` when `nouride.overlays.default` is
+        applied, else the flake's package. Use the `nouride-router` package for the Router edition.
+      '';
     };
 
     host = lib.mkOption {

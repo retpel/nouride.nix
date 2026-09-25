@@ -24,9 +24,23 @@ jobs:
       - name: Bump sources.json
         id: bump
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag }}
         run: |
-          ./update.sh ${{ inputs.tag }}
+          repo=nouverse/nouride-releases
+          tag=${TAG:-$(gh release view -R "$repo" --json tagName --jq .tagName)}
+          base="https://github.com/$repo/releases/download/$tag"
+          sums=$(curl -fsSL "$base/SHA256SUMS"; curl -fsSL "$base/SHA256SUMS-router")
+
+          hashes='{}'
+          for name in nouride-linux-x64 nouride-linux-arm64 nouride-router-linux-x64 nouride-router-linux-arm64; do
+            hex=$(awk -v f="$name.tar.gz" '$2 == f { print $1 }' <<<"$sums")
+            [ -n "$hex" ] || { echo "no checksum for $name in $tag" >&2; exit 1; }
+            sri=$(nix hash convert --hash-algo sha256 --to sri "$hex")
+            hashes=$(jq --arg k "$name" --arg v "$sri" '. + {($k): $v}' <<<"$hashes")
+          done
+          jq -n --arg v "${tag#v}" --argjson h "$hashes" '{version: $v, hashes: $h}' >sources.json
+
           echo "version=$(jq -r .version sources.json)" >>"$GITHUB_OUTPUT"
           git diff --quiet sources.json && echo "changed=false" >>"$GITHUB_OUTPUT" || echo "changed=true" >>"$GITHUB_OUTPUT"
 

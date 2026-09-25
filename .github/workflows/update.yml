@@ -1,0 +1,48 @@
+name: update nouride
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (empty = latest)"
+        required: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Bump sources.json
+        id: bump
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ./update.sh ${{ inputs.tag }}
+          echo "version=$(jq -r .version sources.json)" >>"$GITHUB_OUTPUT"
+          git diff --quiet sources.json && echo "changed=false" >>"$GITHUB_OUTPUT" || echo "changed=true" >>"$GITHUB_OUTPUT"
+
+      - name: Build
+        if: steps.bump.outputs.changed == 'true'
+        run: nix build --print-build-logs .#nouride .#nouride-router
+
+      - name: Open pull request
+        if: steps.bump.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: update/nouride
+          delete-branch: true
+          add-paths: sources.json
+          commit-message: "nouride: ${{ steps.bump.outputs.version }}"
+          title: "nouride: ${{ steps.bump.outputs.version }}"
+          body: |
+            Bumps nouride to [v${{ steps.bump.outputs.version }}](https://github.com/nouverse/nouride-releases/releases/tag/v${{ steps.bump.outputs.version }}).
+            Both editions built on x86_64-linux.

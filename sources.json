@@ -1,0 +1,9 @@
+{
+  "version": "0.5.13",
+  "hashes": {
+    "nouride-linux-x64": "sha256-GBCsQKSPoHQ7sIR4i3FzcTLZCdWiXVCjMDwwy0VeaKg=",
+    "nouride-linux-arm64": "sha256-/QYLx1QWuAz7aQ1uKVVKrHzWlGzXFMkeUJvonFNnlu0=",
+    "nouride-router-linux-x64": "sha256-mz0W8WLPozTnoHh4fNZTe/qey0WIdPXa6DZNi9NfvzA=",
+    "nouride-router-linux-arm64": "sha256-mAXM/Y8czYtGgb1NTuW6F+bYSYq9zUov/QZH9gjw0kA="
+  }
+}
